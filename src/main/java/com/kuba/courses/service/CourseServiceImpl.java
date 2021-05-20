@@ -3,22 +3,25 @@ package com.kuba.courses.service;
 import com.kuba.courses.exception.CourseError;
 import com.kuba.courses.exception.CourseException;
 import com.kuba.courses.model.Course;
+import com.kuba.courses.model.CourseMember;
+import com.kuba.courses.model.dto.Student;
 import com.kuba.courses.repository.CourseRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 public class CourseServiceImpl implements CourseService {
 
     private final CourseRepository courseRepository;
+    private final StudentServiceClient studentServiceClient;
 
     @Autowired
-    public CourseServiceImpl(CourseRepository courseRepository) {
+    public CourseServiceImpl(CourseRepository courseRepository, StudentServiceClient studentServiceClient) {
         this.courseRepository = courseRepository;
+        this.studentServiceClient = studentServiceClient;
     }
 
     @Override
@@ -66,17 +69,12 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public Course putCourse(String code, Course course) {
-
         // TO DO @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-
-
         return courseRepository.findById(code).map(
                 courseFromDb -> {
                     return courseRepository.save(editCourseMethod(course,courseFromDb));
                 }
         ).orElseThrow(() -> new CourseException(CourseError.COURSE_NOT_FOUND));
-
-
     }
 
     @Override
@@ -106,6 +104,39 @@ public class CourseServiceImpl implements CourseService {
                     return courseRepository.save(courseFromDb);
                 }
         ).orElseThrow(()->new CourseException(CourseError.COURSE_NOT_FOUND));
+    }
+
+    @Override
+    public void courseEnrollment(Long studentId, String courseCode) {
+        // first check if we can sign in into specific course, only then we make request to StudentService
+        Course course = getCourse(courseCode);
+        validateCourseStatus(course);
+        // we are going to connect with StudentService
+        Student student = studentServiceClient.getStudentById(studentId);
+        validateStudentBeforeCourseEnrollment(course, student);
+        course.incrementParticipantsNumber();
+        course.getCourseMembers().add(new CourseMember(student.getEmail()));
+        courseRepository.save(course);
+
+    }
+
+    private void validateStudentBeforeCourseEnrollment(Course course, Student student) {
+        // validation just in case, already done in student service (returns only active students)
+        System.out.println();
+        if(!Student.Status.ACTIVE.equals(student.getStatus())){
+            throw new CourseException(CourseError.STUDENT_IS_NOT_ACTIVE);
+        }
+        // check if we are going to add member with email that already exists
+        if(course.getCourseMembers().stream()
+                .anyMatch(member -> student.getEmail().equals(member.getEmail()))){
+            throw new CourseException(CourseError.STUDENT_ALREADY_ENROLLED);
+        }
+    }
+
+    private void validateCourseStatus(Course course) {
+        if(!Course.Status.ACTIVE.equals(course.getStatus())){
+            throw new CourseException(CourseError.COURSE_IS_NOT_ACTIVE);
+        }
     }
 
 

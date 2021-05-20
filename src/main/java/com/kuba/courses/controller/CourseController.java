@@ -1,12 +1,10 @@
 package com.kuba.courses.controller;
 
-
 import com.kuba.courses.model.Course;
-import com.kuba.courses.model.dto.Student;
 import com.kuba.courses.service.CourseService;
-import com.kuba.courses.service.StudentServiceClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
@@ -58,7 +56,10 @@ public class CourseController {
         return courseService.patchCourse(code, course);
     }
 
-
-
+    @PostMapping("{courseCode}/student/{studentId}")
+    public ResponseEntity<?> courseEnrollment(@PathVariable String courseCode, @PathVariable Long studentId){
+        courseService.courseEnrollment(studentId, courseCode);
+        return ResponseEntity.ok().build();
+    }
 
 }
